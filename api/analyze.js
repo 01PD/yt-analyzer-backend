@@ -1,19 +1,18 @@
 // api/analyze.js
-// Vercel 서버리스 함수: 프론트에서 영상 정보를 보내면
-// OpenAI로 분석해서 analysisText를 반환합니다.
+// Vercel Serverless Function (Node.js, CJS 스타일)
 
 module.exports = async (req, res) => {
-  // CORS 설정 (GitHub Pages 등 다른 도메인에서 호출 가능하도록)
+  // ✅ CORS 헤더 (가장 먼저)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // OPTIONS 프리플라이트 처리
+  // ✅ 프리플라이트(OPTIONS) 처리
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // POST 이외는 막기
+  // ✅ POST 이외는 거절
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST allowed" });
   }
@@ -21,11 +20,9 @@ module.exports = async (req, res) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      // 환경변수 없으면 바로 에러
       return res.status(500).json({ error: "OPENAI_API_KEY is not set." });
     }
 
-    // 프론트에서 보낸 데이터
     const { title, description, stats, durationSeconds, transcript } = req.body || {};
 
     const safeTitle = title || "";
@@ -72,7 +69,6 @@ ${safeTranscript}
 6. 썸네일·제목 개선 힌트 2~3개
 `;
 
-    // OpenAI Chat Completions 호출
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -80,7 +76,7 @@ ${safeTranscript}
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini", // 필요하면 다른 모델로 변경 가능
+        model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: "You are a helpful assistant." },
           { role: "user", content: prompt },
@@ -100,9 +96,12 @@ ${safeTranscript}
     const data = await openaiRes.json();
     const analysisText = data.choices?.[0]?.message?.content || "";
 
-    // 여기서 실제 분석 텍스트를 프론트로 반환
+    // ✅ 분석 텍스트 반환
     return res.status(200).json({ analysisText });
   } catch (err) {
     return res.status(500).json({
       error: "서버 내부 오류",
-      detail: e
+      detail: err.message || String(err),
+    });
+  }
+};
